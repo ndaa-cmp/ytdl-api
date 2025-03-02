@@ -16,7 +16,7 @@ app.use(express.json());
 
 // Route untuk root (/)
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.json({"anjay":"300"})
 });
 
 // Endpoint untuk download video (MP4)
