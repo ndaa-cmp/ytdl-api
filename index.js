@@ -3,7 +3,18 @@ const ytdl = require('@distube/ytdl-core');
 const fs = require('fs');
 const app = express();
 
-const agent = ytdl.createAgent(JSON.parse(fs.readFileSync('cookies.json')));
+// Gunakan environment variable atau fallback ke file lokal (untuk development)
+let agent;
+try {
+    const cookies = process.env.COOKIES_JSON 
+        ? JSON.parse(process.env.COOKIES_JSON)
+        : JSON.parse(fs.readFileSync('cookies.json'));
+    agent = ytdl.createAgent(cookies);
+} catch (error) {
+    console.error('Error creating agent:', error);
+    // Buat agent tanpa cookies sebagai fallback
+    agent = ytdl.createAgent([]);
+}
 
 app.use(express.json());
 
