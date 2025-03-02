@@ -1,48 +1,73 @@
 const express = require('express');
 const ytdl = require('@distube/ytdl-core');
 const fs = require('fs');
-const path = require('path');
 const app = express();
-const port = 3000;
 
-// Buat agent dari cookies.json
 const agent = ytdl.createAgent(JSON.parse(fs.readFileSync('cookies.json')));
 
-// Serve file statis dari folder public
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Middleware untuk parsing JSON
 app.use(express.json());
 
-// Route untuk root (/)
-app.get('/', (req, res) => {
-    res.json({"anjay":"300"})
-});
+// Fungsi handler Vercel
+module.exports = async (req, res) => {
+    if (req.url.startsWith('/download')) {
+        try {
+            const videoUrl = req.query.url;
+            
+            if (!videoUrl || !ytdl.validateURL(videoUrl)) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Please provide a valid YouTube URL'
+                });
+            }
 
-// Endpoint untuk download video (MP4)
-app.get('/download', async (req, res) => {
-    try {
-        const videoUrl = req.query.url;
-        if (!videoUrl || !ytdl.validateURL(videoUrl)) {
-            return res.status(400).send('Invalid YouTube URL');
+            const info = await ytdl.getInfo(videoUrl, { agent });
+            const videoTitle = info.videoDetails.title.replace(/[^\w\s]/gi, '');
+
+            res.setHeader('Content-Disposition', `attachment; filename="${videoTitle}.mp4"`);
+            
+            ytdl(videoUrl, {
+                quality: 'highest',
+                filter: 'audioandvideo',
+                agent: agent
+            }).pipe(res);
+
+        } catch (error) {
+            res.status(500).json({
+                status: 'error',
+                message: 'Error downloading video: ' + error.message
+            });
         }
+    } else if (req.url.startsWith('/info')) {
+        try {
+            const videoUrl = req.query.url;
+            
+            if (!videoUrl || !ytdl.validateURL(videoUrl)) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Please provide a valid YouTube URL'
+                });
+            }
 
-        res.header('Content-Disposition', 'attachment; filename="video.mp4"');
-        res.header('Content-Type', 'video/mp4');
+            const info = await ytdl.getInfo(videoUrl, { agent });
+            
+            const videoInfo = {
+                title: info.videoDetails.title,
+                author: info.videoDetails.author.name,
+                duration: info.videoDetails.lengthSeconds,
+                views: info.videoDetails.viewCount,
+                thumbnail: info.videoDetails.thumbnails[0].url
+            };
 
-        ytdl(videoUrl, {
-            quality: 'highest',
-            filter: 'audioandvideo',
-            agent: agent
-        }).pipe(res);
+            res.json({
+                status: 'success',
+                data: videoInfo
+            });
 
-    } catch (error) {
-        console.error(error);
-        res.status(500).send('Error downloading video');
+        } catch (error) {
+            res.status(500).json({
+                status: 'error',
+                message: 'Error getting video info: ' + error.message
+            });
+        }
     }
-});
-
-// Jalankan server
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
-});
+};
