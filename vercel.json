@@ -1,9 +1,13 @@
 {
     "version": 2,
     "routes": [
-      {
-        "src": "/(.*)",
-        "dest": "index.js"
-      }
+        {
+            "src": "/download",
+            "dest": "/index.js"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/public/$1"
+        }
     ]
   }
